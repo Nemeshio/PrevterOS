@@ -1,14 +1,15 @@
 let cursorX, cursorY;
 let screenW, screenH;
 
-let padding = 15;
-
+let padding = 5;
+let fontsizeW = 9;
+let fontsizeH = 16;
 let cursorBlink = false;
 let prefix = "user>";
 
 let textBuffer = [
-                    "PrevterOS v.0.0.1                                                               ",
-                    "build web-1                                                                     ",
+                    "PrevterOS v.0.0.2                                                               ",
+                    "build web-2                                                                     ",
                     "                                                                                ",
                     "                                                                                ",
                     "                                                                                ",
@@ -39,21 +40,44 @@ function preload() {
 }
 
 function setup(){
-    createCanvas(720 + (2 * padding), 400 + (2 * padding));
+    //creating fullscreen 
+    baseW = 720 + (2 * padding);
+    baseH = 400 + (2 * padding);
 
-    fill(255);
-    color(255);
-    textFont(fontIBM);
-    textSize(16);
+    newW = document.getElementById("term").offsetWidth;
+    newH = document.getElementById("term").offsetHeight;
+
+    if (newW > newH) { //Landscape, setting by height
+        aspect = windowHeight / baseH;  
+        newW = baseW * aspect;
+    }
+    else { //Portrait, setting by width 
+        aspect = windowWidth / baseW;
+        newH = baseH * aspect;
+    }
+    var canvas = createCanvas(newW + (2 * padding), newH + (2 * padding));
+    canvas.style("width", "");
+    canvas.style("height", "100%");
+    //var canvas = createCanvas(baseW, baseH);
+    canvas.parent("term");
     //SETUP INFORMATION
     cursorX = 0;
     cursorY = 0;
     screenW = 80;
     screenH = 25;
 
-    background(0);
     SetCursor(0, 2);
+    fill(255);
+    color(255);
+    textFont(fontIBM);
+    fontsizeH *= newW/baseW;
+    fontsizeW *= newW/baseW;
+    textSize(fontsizeH);
     Write(prefix);
+}
+
+function GetStringFromPos(start, end) {
+
 }
 
 function setCharAt(str,index,chr) {
@@ -76,7 +100,7 @@ function SetCursor(x, y){
 }
 
 function Render(string){
-    text(string, padding + (cursorX * 9), padding + (cursorY * 16) + 9);
+    text(string, padding + (cursorX * fontsizeW), padding + (cursorY * fontsizeH) + fontsizeW);
 }
 
 function SetChar(char){
@@ -88,6 +112,11 @@ function Write(string){
     for(var i = 0; i < string.length; i++){
         if (string[i] == "\n") { SetCursor(cursorX, cursorY+1); continue; }
         else if (string[i] == "\r") { SetCursor(0, cursorY); continue; }
+        if (cursorY+1 >= screenH) {
+            SetCursor(cursorX, screenH-2);
+            textBuffer.shift();
+            textBuffer.push("                                                                                ");
+        }
         SetChar(string[i]);
     }
 }
@@ -100,12 +129,12 @@ function Clear(){
 }
 
 function draw(){
-    background(0);
+    clear();
+    //background(0);
     //Logic
-
-    text("X: " + cursorX + " Y: " + cursorY, padding, height - padding)
-
-
+    
+    //var str = "X: " + cursorX + " Y: " + cursorY;
+    //text(str, width - padding - (fontsizeW * str.length), fontsizeH + padding)
 
     //Screen render
     tmpCur = GetCursor();
@@ -119,7 +148,6 @@ function draw(){
     if((frameCount % 16) == 0) cursorBlink = !cursorBlink;
     if(cursorBlink) Render("_");
     else Render(" ");
-
     //console.log(textBuffer);
 }
 
@@ -140,6 +168,8 @@ function RunCommand(cmd){
     else Write("\r\nUnknown command: \"" + cmd.split(" ")[0] +"\"");
 }
 
+function isCursorOnScreen() { return (cursorX > 0) && (cursorX < screenW) && (cursorY > 0) && (cursorY < screenH); }
+
 function keyPressed() {
     if(keyCode == BACKSPACE && cursorX > prefix.length){
         SetCursorPos(GetCursor() - 1);
@@ -147,9 +177,16 @@ function keyPressed() {
         SetCursorPos(GetCursor() - 1);
     }
     if(keyCode == ENTER){
-        cmd = textBuffer[cursorY].substring(prefix.length).trim()
-        RunCommand(cmd);
-        SetCursor(0, cursorY+1);
+        if (isCursorOnScreen()) {
+            cmd = textBuffer[cursorY].substring(prefix.length).trim()
+            RunCommand(cmd);
+            SetCursor(0, cursorY+1);
+        }
+        else {
+            SetCursor(cursorX, screenH-2);
+            textBuffer.shift();
+            textBuffer.push("                                                                                ");
+        }
         Write(prefix);
     }
 }
