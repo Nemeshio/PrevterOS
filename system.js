@@ -6,10 +6,16 @@ let fontsizeW = 9;
 let fontsizeH = 16;
 let cursorBlink = false;
 let prefix = "user>";
+let inputStart = 0;
+
+let fillColor;
+let running = false;
+
+let currDrawTask = null;
 
 let textBuffer = [
-                    "PrevterOS v.0.0.2                                                               ",
-                    "build web-2                                                                     ",
+                    "PrevterOS v.0.0.3                                                               ",
+                    "build web-3                                                                     ",
                     "                                                                                ",
                     "                                                                                ",
                     "                                                                                ",
@@ -67,17 +73,26 @@ function setup(){
     screenH = 25;
 
     SetCursor(0, 2);
-    fill(255);
-    color(255);
+    fillColor = color(255);
+    fill(fillColor);
     textFont(fontIBM);
     fontsizeH *= newW/baseW;
     fontsizeW *= newW/baseW;
     textSize(fontsizeH);
     Write(prefix);
+    inputStart = GetCursor();
 }
 
 function GetStringFromPos(start, end) {
-
+    var string = "";
+    var i = start;
+    while (i <= end){
+        x = i % screenW;
+        y = ~~(i / screenW);
+        string += textBuffer[y][x];
+        i++;
+    }
+    return string;  
 }
 
 function setCharAt(str,index,chr) {
@@ -101,6 +116,17 @@ function SetCursor(x, y){
 
 function Render(string){
     text(string, padding + (cursorX * fontsizeW), padding + (cursorY * fontsizeH) + fontsizeW);
+}
+
+function RenderAtPos(string, x, y){
+    text(string, padding + (x * fontsizeW), padding + (y * fontsizeH) + fontsizeW);
+}
+
+function RenderColorPos(string, x, y, color){
+    push();
+    fill(color);
+    text(string, padding + (x * fontsizeW), padding + (y * fontsizeH) + fontsizeW);
+    pop();
 }
 
 function SetChar(char){
@@ -128,11 +154,27 @@ function Clear(){
     }
 }
 
+let scanLineY = 0;
+
 function draw(){
     clear();
+    if (currDrawTask != null) {
+        currDrawTask.draw();
+    }
+    fill(fillColor);
     //background(0);
     //Logic
+
     
+
+    //Line
+    // push();
+    // fill(255, 35);
+    // if (scanLineY > height) { scanLineY = -height/10; }
+    // rect(0, scanLineY, width, height/10);
+    // scanLineY+=5;
+    // pop();
+
     //var str = "X: " + cursorX + " Y: " + cursorY;
     //text(str, width - padding - (fontsizeW * str.length), fontsizeH + padding)
 
@@ -149,36 +191,34 @@ function draw(){
     if(cursorBlink) Render("_");
     else Render(" ");
     //console.log(textBuffer);
+
 }
 
 function RunCommand(cmd){
-    if (cmd.startsWith("help") && cmd == "help") {
-        Write("\r\nhelp         - List all commands");
-        Write("\r\ncls          - Clear screen");
-        Write("\r\necho (text)  - Print line of text");
-    }
-    else if (cmd.startsWith("cls") && cmd == "cls") {
-        Clear();
-        SetCursor(0, -1);
-    }
-    else if (cmd.startsWith("echo ")) {
-        Write("\r\n" + cmd.substring(5));
-    }
-    else if (cmd == "") return;
+    if (cmd == "") return;
+
+    running = true;
+    if (cmd == "help") Help(cmd);
+    else if (cmd == "cls") Cls(cmd);
+    else if (cmd.startsWith("echo ")) Echo(cmd);
+    else if (cmd.startsWith("color")) Color(cmd);
+    else if (cmd == "matrix") currDrawTask = new MatrixScreen(cmd);
+
     else Write("\r\nUnknown command: \"" + cmd.split(" ")[0] +"\"");
+    running = false;
 }
 
-function isCursorOnScreen() { return (cursorX > 0) && (cursorX < screenW) && (cursorY > 0) && (cursorY < screenH); }
+function isCursorOnScreen() { return (cursorX >= 0) && (cursorX < screenW) && (cursorY >= 0) && (cursorY < screenH); }
 
 function keyPressed() {
-    if(keyCode == BACKSPACE && cursorX > prefix.length){
+    if(keyCode == BACKSPACE && GetCursor() > inputStart){
         SetCursorPos(GetCursor() - 1);
         SetChar(" ");
         SetCursorPos(GetCursor() - 1);
     }
     if(keyCode == ENTER){
         if (isCursorOnScreen()) {
-            cmd = textBuffer[cursorY].substring(prefix.length).trim()
+            cmd = GetStringFromPos(inputStart, GetCursor()).trim() //textBuffer[cursorY].substring(prefix.length)
             RunCommand(cmd);
             SetCursor(0, cursorY+1);
         }
@@ -188,6 +228,7 @@ function keyPressed() {
             textBuffer.push("                                                                                ");
         }
         Write(prefix);
+        inputStart = GetCursor();
     }
 }
 
@@ -198,8 +239,9 @@ function keyTyped() {
 
 function mouseClicked(event) {
     Write(prompt("Enter string (For mobile devices): "));
-    cmd = textBuffer[cursorY].substring(prefix.length).trim()
+    cmd = GetStringFromPos(inputStart, GetCursor()).trim()
     RunCommand(cmd);
     SetCursor(0, cursorY+1);
     Write(prefix);
+    inputStart = GetCursor();
 }
